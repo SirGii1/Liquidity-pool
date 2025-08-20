@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Liquidity Remover</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.3/web3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: white;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-top: 40px;
+    }
+
+    .header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        font-weight: 300;
+    }
+
+    .card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .wallet-section {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .wallet-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        font-size: 1.1rem;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ff4757;
+        animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected {
+        background: #2ed573;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+
+    .btn {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        border: none;
+        color: white;
+        padding: 15px 30px;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+    }
+
+    .btn:disabled {
+        background: rgba(255, 255, 255, 0.2);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn.success {
+        background: linear-gradient(135deg, #2ed573, #17a2b8);
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #ff6b6b;
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-1px);
+    }
+
+    .form-control::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    .liquidity-pools {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .pool-item {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .pool-item:hover {
+        border-color: #ff6b6b;
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateX(5px);
+    }
+
+    .pool-item.selected {
+        border-color: #2ed573;
+        background: rgba(46, 213, 115, 0.1);
+    }
+
+    .pool-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .pool-name {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .pool-balance {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .pool-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        font-size: 0.85rem;
+    }
+
+    .slider-container {
+        margin: 20px 0;
+    }
+
+    .slider {
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        outline: none;
+        -webkit-appearance: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #ff6b6b;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3);
+    }
+
+    .percentage-display {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 15px 0;
+        color: #ff6b6b;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .quick-buttons {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .quick-btn {
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+
+    .quick-btn:hover {
+        background: rgba(255, 107, 107, 0.2);
+        border-color: #ff6b6b;
+    }
+
+    .transaction-status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .status-success {
+        background: rgba(46, 213, 115, 0.2);
+        color: #2ed573;
+        border: 1px solid rgba(46, 213, 115, 0.3);
+    }
+
+    .status-error {
+        background: rgba(255, 71, 87, 0.2);
+        color: #ff4757;
+        border: 1px solid rgba(255, 71, 87, 0.3);
+    }
+
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .warning-banner {
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        color: #ffc107;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        text-align: center;
+        font-weight: 600;
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌊 Liquidity Remover</h1>
+            <p>Remove liquidity from your Solana meme coin pools</p>
+        </div>
+
+```
+    <div class="warning-banner">
+        ⚠️ Always verify pool addresses and amounts before confirming transactions
+    </div>
+
+    <div class="card">
+        <div class="wallet-section">
+            <div class="wallet-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="walletStatus">Wallet Disconnected</span>
+            </div>
+            <button class="btn" id="connectWallet">Connect Phantom Wallet</button>
+        </div>
+    </div>
+
+    <div class="card" id="poolsSection" style="display: none;">
+        <h3 style="margin-bottom: 20px;">Your Liquidity Pools</h3>
+        <div class="liquidity-pools" id="liquidityPools">
+            <!-- Pools will be loaded here -->
+        </div>
+    </div>
+
+    <div class="card" id="removeSection" style="display: none;">
+        <h3 style="margin-bottom: 20px;">Remove Liquidity</h3>
+        
+        <div class="form-group">
+            <label>Selected Pool</label>
+            <div id="selectedPoolInfo" style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                No pool selected
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Amount to Remove</label>
+            <div class="percentage-display" id="percentageDisplay">0%</div>
+            <input type="range" class="slider" id="amountSlider" min="0" max="100" value="0">
+            <div class="quick-buttons">
+                <button class="quick-btn" onclick="setPercentage(25)">25%</button>
+                <button class="quick-btn" onclick="setPercentage(50)">50%</button>
+                <button class="quick-btn" onclick="setPercentage(75)">75%</button>
+                <button class="quick-btn" onclick="setPercentage(100)">MAX</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>You will receive (estimated)</label>
+            <div id="estimatedReceive" style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; font-family: monospace;">
+                <div>Token A: 0</div>
+                <div>Token B: 0</div>
+            </div>
+        </div>
+
+        <button class="btn" id="removeLiquidityBtn" disabled>Remove Liquidity</button>
+        
+        <div id="transactionStatus" style="display: none;"></div>
+    </div>
+</div>
+
+<script>
+    // State management
+    let walletConnected = false;
+    let selectedPool = null;
+    let liquidityPools = [];
+
+    // Mock data for demonstration
+    const mockPools = [
+        {
+            id: 1,
+            name: "BONK/SOL",
+            tokenA: "BONK",
+            tokenB: "SOL",
+            balance: "1,234.56",
+            tokenAAmount: "1000000",
+            tokenBAmount: "12.34",
+            poolAddress: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+            totalLiquidity: "5000"
+        },
+        {
+            id: 2,
+            name: "PEPE/USDC",
+            tokenA: "PEPE",
+            tokenB: "USDC",
+            balance: "567.89",
+            tokenAAmount: "500000",
+            tokenBAmount: "123.45",
+            poolAddress: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+            totalLiquidity: "2500"
+        },
+        {
+            id: 3,
+            name: "SHIB/SOL",
+            tokenA: "SHIB",
+            tokenB: "SOL",
+            balance: "89.12",
+            tokenAAmount: "750000",
+            tokenBAmount: "5.67",
+            poolAddress: "HMx4pdp2nPNnxpRUNvd8ixqRGPQ45y5R8vdvJ8r5rRrK",
+            totalLiquidity: "1200"
+        }
+    ];
+
+    // DOM elements
+    const connectWalletBtn = document.getElementById('connectWallet');
+    const walletStatus = document.getElementById('walletStatus');
+    const statusDot = document.getElementById('statusDot');
+    const poolsSection = document.getElementById('poolsSection');
+    const removeSection = document.getElementById('removeSection');
+    const liquidityPoolsDiv = document.getElementById('liquidityPools');
+    const amountSlider = document.getElementById('amountSlider');
+    const percentageDisplay = document.getElementById('percentageDisplay');
+    const selectedPoolInfo = document.getElementById('selectedPoolInfo');
+    const estimatedReceive = document.getElementById('estimatedReceive');
+    const removeLiquidityBtn = document.getElementById('removeLiquidityBtn');
+    const transactionStatus = document.getElementById('transactionStatus');
+
+    // Event listeners
+    connectWalletBtn.addEventListener('click', connectWallet);
+    amountSlider.addEventListener('input', updatePercentage);
+    removeLiquidityBtn.addEventListener('click', removeLiquidity);
+
+    async function connectWallet() {
+        try {
+            if (typeof window.solana === 'undefined') {
+                alert('Please install Phantom wallet');
+                return;
+            }
+
+            const response = await window.solana.connect();
+            walletConnected = true;
+            
+            updateWalletUI();
+            loadLiquidityPools();
+            
+        } catch (error) {
+            console.error('Failed to connect wallet:', error);
+            showStatus('Failed to connect wallet', 'error');
+        }
+    }
+
+    function updateWalletUI() {
+        if (walletConnected) {
+            walletStatus.textContent = 'Wallet Connected';
+            statusDot.classList.add('connected');
+            connectWalletBtn.textContent = 'Disconnect Wallet';
+            connectWalletBtn.classList.add('success');
+            poolsSection.style.display = 'block';
+        } else {
+            walletStatus.textContent = 'Wallet Disconnected';
+            statusDot.classList.remove('connected');
+            connectWalletBtn.textContent = 'Connect Phantom Wallet';
+            connectWalletBtn.classList.remove('success');
+            poolsSection.style.display = 'none';
+            removeSection.style.display = 'none';
+        }
+    }
+
+    function loadLiquidityPools() {
+        liquidityPools = mockPools;
+        renderPools();
+    }
+
+    function renderPools() {
+        liquidityPoolsDiv.innerHTML = '';
+        
+        if (liquidityPools.length === 0) {
+            liquidityPoolsDiv.innerHTML = '<p style="text-align: center; opacity: 0.7;">No liquidity pools found</p>';
+            return;
+        }
+
+        liquidityPools.forEach(pool => {
+            const poolElement = document.createElement('div');
+            poolElement.className = 'pool-item';
+            poolElement.onclick = () => selectPool(pool);
+            
+            poolElement.innerHTML = `
+                <div class="pool-header">
+                    <div class="pool-name">${pool.name}</div>
+                    <div class="pool-balance">Balance: ${pool.balance} LP</div>
+                </div>
+                <div class="pool-details">
+                    <div>Token A: ${Number(pool.tokenAAmount).toLocaleString()} ${pool.tokenA}</div>
+                    <div>Token B: ${pool.tokenBAmount} ${pool.tokenB}</div>
+                    <div>Pool Address: ${pool.poolAddress.substring(0, 8)}...${pool.poolAddress.substring(-6)}</div>
+                    <div>Total Liquidity: $${Number(pool.totalLiquidity).toLocaleString()}</div>
+                </div>
+            `;
+            
+            liquidityPoolsDiv.appendChild(poolElement);
+        });
+    }
+
+    function selectPool(pool) {
+        selectedPool = pool;
+        
+        // Update UI
+        document.querySelectorAll('.pool-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        event.currentTarget.classList.add('selected');
+        
+        selectedPoolInfo.innerHTML = `
+            <strong>${pool.name}</strong><br>
+            Balance: ${pool.balance} LP tokens<br>
+            Pool: ${pool.poolAddress.substring(0, 12)}...${pool.poolAddress.substring(-8)}
+        `;
+        
+        removeSection.style.display = 'block';
+        removeLiquidityBtn.disabled = false;
+        updateEstimatedReceive();
+    }
+
+    function updatePercentage() {
+        const percentage = amountSlider.value;
+        percentageDisplay.textContent = `${percentage}%`;
+        updateEstimatedReceive();
+    }
+
+    function setPercentage(percentage) {
+        amountSlider.value = percentage;
+        updatePercentage();
+    }
+
+    function updateEstimatedReceive() {
+        if (!selectedPool) return;
+        
+        const percentage = parseFloat(amountSlider.value) / 100;
+        const tokenAReceive = (parseFloat(selectedPool.tokenAAmount) * percentage).toLocaleString();
+        const tokenBReceive = (parseFloat(selectedPool.tokenBAmount) * percentage).toFixed(4);
+        
+        estimatedReceive.innerHTML = `
+            <div>${selectedPool.tokenA}: ${tokenAReceive}</div>
+            <div>${selectedPool.tokenB}: ${tokenBReceive}</div>
+        `;
+    }
+
+    async function removeLiquidity() {
+        if (!selectedPool) return;
+        
+        const percentage = parseFloat(amountSlider.value);
+        if (percentage === 0) {
+            showStatus('Please select an amount to remove', 'error');
+            return;
+        }
+
+        removeLiquidityBtn.disabled = true;
+        removeLiquidityBtn.innerHTML = '<span class="loading"></span> Processing...';
+        
+        showStatus('Preparing transaction...', 'pending');
+
+        try {
+            // Simulate transaction delay
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Simulate transaction
+            showStatus('Transaction submitted. Waiting for confirmation...', 'pending');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Success
+            showStatus(`Successfully removed ${percentage}% liquidity from ${selectedPool.name}!`, 'success');
+            
+            // Update pool balance (simulate)
+            const newBalance = (parseFloat(selectedPool.balance.replace(',', '')) * (1 - percentage / 100)).toFixed(2);
+            selectedPool.balance = Number(newBalance).toLocaleString();
+            
+            // Reset UI
+            amountSlider.value = 0;
+            updatePercentage();
+            renderPools();
+            
+            if (percentage === 100) {
+                // Remove pool if 100% removed
+                liquidityPools = liquidityPools.filter(p => p.id !== selectedPool.id);
+                selectedPool = null;
+                removeSection.style.display = 'none';
+                renderPools();
+            }
+            
+        } catch (error) {
+            showStatus('Transaction failed: ' + error.message, 'error');
+        }
+        
+        removeLiquidityBtn.disabled = false;
+        removeLiquidityBtn.innerHTML = 'Remove Liquidity';
+    }
+
+    function showStatus(message, type) {
+        transactionStatus.style.display = 'block';
+        transactionStatus.className = `transaction-status status-${type}`;
+        transactionStatus.textContent = message;
+        
+        // Auto-hide after 5 seconds for success/error
+        if (type !== 'pending') {
+            setTimeout(() => {
+                transactionStatus.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    // Initialize
+    updateWalletUI();
+
+    // Auto-connect if wallet was previously connected
+    if (typeof window.solana !== 'undefined' && window.solana.isConnected) {
+        walletConnected = true;
+        updateWalletUI();
+        loadLiquidityPools();
+    }
+</script>
+```
+
+</body>
+</html>
